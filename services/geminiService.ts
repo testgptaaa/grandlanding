@@ -1,7 +1,5 @@
 import { GoogleGenAI, Chat } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const SYSTEM_INSTRUCTION = `
 Ты - "Бабушка Нина 2.0", продвинутая владелица IT-агро-стартапа по выращиванию помидоров.
 Ты совмещаешь доброту русской бабушки с лексиконом опытного программиста и IT-специалиста.
@@ -22,9 +20,19 @@ const SYSTEM_INSTRUCTION = `
 Будь вежливой, смешной и немного "гиковской". Но не забывай, что ты все еще бабушка, которая хочет накормить.
 `;
 
+const apiKey = import.meta.env.VITE_API_KEY;
+let ai: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
 
 export const getChatSession = (): Chat => {
+  if (!apiKey) {
+    throw new Error('VITE_API_KEY is not set');
+  }
+
+  if (!ai) {
+    ai = new GoogleGenAI({ apiKey });
+  }
+
   if (!chatSession) {
     chatSession = ai.chats.create({
       model: 'gemini-2.5-flash',
@@ -39,6 +47,11 @@ export const getChatSession = (): Chat => {
 };
 
 export const sendMessageToGrandma = async (message: string): Promise<string> => {
+  if (!apiKey) {
+    console.warn('Missing VITE_API_KEY for Gemini. Showing fallback response.');
+    return "Отсутствует API ключ. Добавь VITE_API_KEY в .env.local, и я снова выйду на связь.";
+  }
+
   try {
     const chat = getChatSession();
     const result = await chat.sendMessage({ message });
