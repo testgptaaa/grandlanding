@@ -1,7 +1,5 @@
 import { GoogleGenAI, Chat } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
 const SYSTEM_INSTRUCTION = `
 Ты - "Бабушка Нина 2.0", продвинутая владелица IT-агро-стартапа по выращиванию помидоров.
 Ты совмещаешь доброту русской бабушки с лексиконом опытного программиста и IT-специалиста.
@@ -22,11 +20,34 @@ const SYSTEM_INSTRUCTION = `
 Будь вежливой, смешной и немного "гиковской". Но не забывай, что ты все еще бабушка, которая хочет накормить.
 `;
 
+let ai: GoogleGenAI | null = null;
 let chatSession: Chat | null = null;
 
-export const getChatSession = (): Chat => {
+const getApiKey = () => import.meta.env.VITE_API_KEY;
+
+const ensureClient = (): GoogleGenAI | null => {
+  const apiKey = getApiKey();
+
+  if (!apiKey) {
+    return null;
+  }
+
+  if (!ai) {
+    ai = new GoogleGenAI({ apiKey });
+  }
+
+  return ai;
+};
+
+export const getChatSession = (): Chat | null => {
+  const client = ensureClient();
+
+  if (!client) {
+    return null;
+  }
+
   if (!chatSession) {
-    chatSession = ai.chats.create({
+    chatSession = client.chats.create({
       model: 'gemini-2.5-flash',
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -35,12 +56,18 @@ export const getChatSession = (): Chat => {
       },
     });
   }
+
   return chatSession;
 };
 
 export const sendMessageToGrandma = async (message: string): Promise<string> => {
+  const chat = getChatSession();
+
+  if (!chat) {
+    return "Gemini API недоступен: добавь VITE_API_KEY в .env.local, и бабушка снова выйдет в эфир.";
+  }
+
   try {
-    const chat = getChatSession();
     const result = await chat.sendMessage({ message });
     return result.text || "Error 404: Ответ не найден. Попробуй еще раз, милок.";
   } catch (error) {
